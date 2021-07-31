@@ -1,14 +1,61 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
+import readline from 'readline';
+import { Readable } from 'stream';
+
 import multer from 'multer';
+import { client } from './database/client';
 
 const multerConfig = multer();
 
 const router = Router();
 
-router.post('/products' , multerConfig.single('file'), (request:Request, response:Response) => {
-  console.log(request.file?.buffer.toString('utf-8'));
-  return response.send();
+interface Product {
+  code_bar: string;
+  description: string;
+  price: number;
+  quantity: number;
+}
+
+router.post('/products' , multerConfig.single('file'),
+
+async (request:Request, response:Response) => {
+  const { file } = request;
+  const { buffer } = file;
+
+  const readableFile = new Readable();
+  readableFile.push(buffer);
+  readableFile.push(null);
+  
+  const productsLine = readline.createInterface({
+    input: readableFile,
+  })
+
+  const products:Product[] = [];
+
+  for await (let line of productsLine) {
+    const productLineSplit = line.split(',');
+    
+    products.push({
+      code_bar: productLineSplit[0],
+      description: productLineSplit[1],
+      price: Number(productLineSplit[2]),
+      quantity: Number(productLineSplit[3]),
+    });
+}
+
+  for await ( let { code_bar, description, price, quantity } of products) {
+    await client.products.create({
+      data: {
+        code_bar,
+        description,
+        price,
+        quantity,
+      },
+    });
+  }
+
+  return response.json(products);
 })
 
 
