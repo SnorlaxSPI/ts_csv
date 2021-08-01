@@ -21,12 +21,13 @@ router.post('/products' , multerConfig.single('file'),
 
 async (request:Request, response:Response) => {
   const { file } = request;
-  const { buffer } = file;
-
+  const buffer = file?.buffer;
+  
   const readableFile = new Readable();
   readableFile.push(buffer);
   readableFile.push(null);
   
+  // quebrar o csv linha a linha
   const productsLine = readline.createInterface({
     input: readableFile,
   })
